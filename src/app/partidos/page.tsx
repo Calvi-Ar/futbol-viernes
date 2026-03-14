@@ -38,6 +38,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Match, Player, Scorer } from "@/lib/types";
 import {
@@ -57,6 +59,8 @@ export default function PartidosPage() {
 }
 
 function PartidosContent() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const searchParams = useSearchParams();
   const { currentGroup, loading: groupLoading, canEdit } = useGroup();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -82,8 +86,22 @@ function PartidosContent() {
   const [scorerPlayerId, setScorerPlayerId] = useState("");
   const [scorerGoals, setScorerGoals] = useState(1);
 
+  const prevGroupRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
     if (groupLoading || !currentGroup) return;
+
+    if (prevGroupRef.current && prevGroupRef.current !== currentGroup.groupId) {
+      setMatches([]);
+      setPlayers([]);
+      setHydrated(false);
+      handleCloseMatchDialog();
+      setExpandedMatchId(null);
+      openedPendingRef.current = false;
+      expandedPendingRef.current = false;
+    }
+    prevGroupRef.current = currentGroup.groupId;
+
     Promise.all([
       groupFetch("/api/matches").then((r) => (r.ok ? r.json() : Promise.reject())),
       groupFetch("/api/players").then((r) => (r.ok ? r.json() : Promise.reject())),
@@ -297,7 +315,7 @@ function PartidosContent() {
         <Container maxWidth="md" disableGutters>
           <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2}>
             <Box>
-              <Typography variant="h4">Partidos</Typography>
+              <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2.125rem" } }}>Partidos</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 Registra resultados y revisá cómo se armaron los equipos.
               </Typography>
@@ -347,7 +365,7 @@ function PartidosContent() {
               >
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ flex: 1, minWidth: 0 }}>
-                    <Stack direction="row" alignItems="center" spacing={2} sx={{ width: "100%" }} flexWrap="wrap">
+                    <Stack direction="row" alignItems="center" spacing={{ xs: 0.5, sm: 2 }} sx={{ width: "100%" }} flexWrap="wrap" useFlexGap>
                       <Chip label={formatDate(match.date)} size="small" variant="outlined" />
                       {match.place && (
                         <Chip label={String(match.place)} size="small" variant="outlined" />
@@ -355,7 +373,7 @@ function PartidosContent() {
                       {match.status === "pending" && (
                         <Chip label="Pendiente" size="small" color="warning" />
                       )}
-                      <Typography fontWeight={700} sx={{ flex: 1 }}>
+                      <Typography fontWeight={700} sx={{ flex: 1, fontSize: { xs: "0.85rem", sm: "1rem" } }}>
                         Equipo 1{" "}
                         <Box component="span" sx={{ color: "primary.main" }}>
                           {match.goalsA}
@@ -463,7 +481,7 @@ function PartidosContent() {
       </Container>
 
       {/* New / Edit match dialog */}
-      <Dialog open={isMatchDialogOpen} onClose={handleCloseMatchDialog} fullWidth maxWidth="md">
+      <Dialog open={isMatchDialogOpen} onClose={handleCloseMatchDialog} fullWidth maxWidth="md" fullScreen={isMobile}>
         <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Stack direction="row" alignItems="center" spacing={1}>
             {editingMatchId ? <EditIcon color="primary" /> : <AddIcon color="primary" />}
@@ -554,15 +572,15 @@ function PartidosContent() {
               <>
                 <Divider />
                 {/* Result */}
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Typography variant="subtitle2" sx={{ minWidth: 80 }}>Resultado</Typography>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "stretch", sm: "center" }}>
+                  <Typography variant="subtitle2" sx={{ minWidth: { xs: "auto", sm: 80 } }}>Resultado</Typography>
                   <TextField
                     label="Equipo 1"
                     type="number"
                     value={goalsA}
                     onChange={(e) => setGoalsA(Math.max(0, Number(e.target.value)))}
                     size="small"
-                    sx={{ width: 100 }}
+                    sx={{ width: { xs: "100%", sm: 100 } }}
                     slotProps={{ htmlInput: { min: 0 } }}
                   />
                   <Typography variant="h6">—</Typography>
@@ -572,7 +590,7 @@ function PartidosContent() {
                     value={goalsB}
                     onChange={(e) => setGoalsB(Math.max(0, Number(e.target.value)))}
                     size="small"
-                    sx={{ width: 100 }}
+                    sx={{ width: { xs: "100%", sm: 100 } }}
                     slotProps={{ htmlInput: { min: 0 } }}
                   />
                 </Stack>

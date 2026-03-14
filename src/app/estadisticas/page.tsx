@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { groupFetch } from "@/lib/api-client";
 import { useGroup } from "@/app/GroupContext";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -54,7 +54,7 @@ function RankingTable({
     <Paper
       sx={{
         flex: 1,
-        minWidth: 300,
+        minWidth: { xs: 0, sm: 300 },
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -134,9 +134,18 @@ export default function EstadisticasPage() {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const prevGroupRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (groupLoading || !currentGroup) return;
+
+    if (prevGroupRef.current && prevGroupRef.current !== currentGroup.groupId) {
+      setStats([]);
+      setLoading(true);
+      setError(null);
+    }
+    prevGroupRef.current = currentGroup.groupId;
+
     groupFetch("/api/stats")
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load stats");
@@ -151,7 +160,7 @@ export default function EstadisticasPage() {
     <Box sx={{ pb: 8 }}>
       <Box sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)", py: 4, px: { xs: 2, sm: 4 } }}>
         <Container maxWidth="lg" disableGutters>
-          <Typography variant="h4">Estadísticas</Typography>
+          <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2.125rem" } }}>Estadísticas</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Rankings históricos basados en todos los partidos finalizados.
           </Typography>

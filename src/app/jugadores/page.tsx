@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { groupFetch } from "@/lib/api-client";
 import { useGroup } from "@/app/GroupContext";
@@ -35,6 +35,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Player, Match, PreferredPosition, Rating } from "@/lib/types";
 import {
@@ -77,6 +79,8 @@ const PREFERRED_POSITION_OPTIONS: { value: PreferredPosition; label: string }[] 
 ];
 
 export default function JugadoresPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const router = useRouter();
   const { currentGroup, loading: groupLoading, canEdit } = useGroup();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -93,9 +97,22 @@ export default function JugadoresPage() {
   const [playerToDelete, setPlayerToDelete] = useState<{ id: string; name: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
+  const prevGroupRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (groupLoading || !currentGroup) return;
+
+    if (prevGroupRef.current && prevGroupRef.current !== currentGroup.groupId) {
+      setPlayers([]);
+      setHydrated(false);
+      setSelectedForMatch(new Set());
+      setIsAddPlayerModalOpen(false);
+      setEditingId(null);
+      setPlayerToDelete(null);
+      resetForm();
+    }
+    prevGroupRef.current = currentGroup.groupId;
+
     groupFetch("/api/players")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: Player[]) => {
@@ -248,7 +265,7 @@ export default function JugadoresPage() {
     const teams = buildTeams(selectedPlayers, matchSize, recent);
     sessionStorage.setItem(
       "equipos-data",
-      JSON.stringify({ teams, selectedPlayers, matchSize, recentMatches: recent })
+      JSON.stringify({ teams, selectedPlayers, matchSize, recentMatches: recent, groupId: currentGroup?.groupId })
     );
     router.push("/equipos");
   };
@@ -259,7 +276,7 @@ export default function JugadoresPage() {
     <Box sx={{ pb: 8 }}>
       <Box sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)", py: 4, px: { xs: 2, sm: 4 } }}>
         <Container maxWidth="md" disableGutters>
-          <Typography variant="h4">Jugadores</Typography>
+          <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2.125rem" } }}>Jugadores</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Administra tus jugadores y seleccioná quiénes juegan para armar equipos.
           </Typography>
@@ -345,8 +362,8 @@ export default function JugadoresPage() {
                           </TableCell>
                         )}
                         <TableCell sx={{ bgcolor: "background.paper" }}>Nombre</TableCell>
-                        <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Edad</TableCell>
-                        <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Posición</TableCell>
+                        <TableCell align="center" sx={{ bgcolor: "background.paper", display: { xs: "none", sm: "table-cell" } }}>Edad</TableCell>
+                        <TableCell align="center" sx={{ bgcolor: "background.paper", display: { xs: "none", sm: "table-cell" } }}>Posición</TableCell>
                         <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Habilidad</TableCell>
                         {canEdit && <TableCell align="right" sx={{ bgcolor: "background.paper" }}>Acciones</TableCell>}
                       </TableRow>
@@ -374,10 +391,10 @@ export default function JugadoresPage() {
                           <TableCell>
                             <Typography variant="body2" fontWeight={600}>{player.name}</Typography>
                           </TableCell>
-                          <TableCell align="center">
+                          <TableCell align="center" sx={{ display: { xs: "none", sm: "table-cell" } }}>
                             <Typography variant="body2">{player.age ?? "—"}</Typography>
                           </TableCell>
-                          <TableCell align="center">
+                          <TableCell align="center" sx={{ display: { xs: "none", sm: "table-cell" } }}>
                             <Typography variant="body2">
                               {PREFERRED_POSITION_OPTIONS.find((o) => o.value === player.preferredPosition)?.label ?? "—"}
                             </Typography>
@@ -423,7 +440,7 @@ export default function JugadoresPage() {
       </Container>
 
       {/* Delete player confirmation */}
-      <Dialog open={playerToDelete !== null} onClose={() => setPlayerToDelete(null)} maxWidth="xs" fullWidth>
+      <Dialog open={playerToDelete !== null} onClose={() => setPlayerToDelete(null)} maxWidth="xs" fullWidth fullScreen={isMobile}>
         <DialogTitle>Eliminar jugador</DialogTitle>
         <DialogContent>
           <Typography>
@@ -442,7 +459,7 @@ export default function JugadoresPage() {
       </Dialog>
 
       {/* Add / Edit player modal */}
-      <Dialog open={isAddPlayerModalOpen} onClose={handleCloseAddPlayerModal} fullWidth maxWidth="sm">
+      <Dialog open={isAddPlayerModalOpen} onClose={handleCloseAddPlayerModal} fullWidth maxWidth="sm" fullScreen={isMobile}>
         <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Stack direction="row" alignItems="center" spacing={1}>
             <PersonAddIcon color="primary" />

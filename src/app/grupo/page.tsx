@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Avatar,
@@ -24,6 +24,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -60,6 +62,8 @@ const roleColors: Record<GroupRole, "primary" | "secondary" | "default"> = {
 
 export default function GrupoPage() {
   const { currentGroup, loading: groupLoading, refetchGroups } = useGroup();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [members, setMembers] = useState<Member[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +84,7 @@ export default function GrupoPage() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const prevGroupRef = useRef<string | undefined>(undefined);
 
   const isOwner = currentGroup?.role === "owner";
 
@@ -158,6 +163,19 @@ export default function GrupoPage() {
 
   useEffect(() => {
     if (!groupLoading && currentGroup) {
+      if (prevGroupRef.current && prevGroupRef.current !== currentGroup.groupId) {
+        setMembers([]);
+        setPlayers([]);
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+        setAddDialogOpen(false);
+        setLinkDialogOpen(false);
+        setDeleteDialogOpen(false);
+        setInviteCode(null);
+      }
+      prevGroupRef.current = currentGroup.groupId;
+
       fetchData();
       fetchInviteCode();
     }
@@ -271,7 +289,7 @@ export default function GrupoPage() {
             <Box>
               <Stack direction="row" alignItems="center" spacing={1.5}>
                 <SettingsIcon sx={{ color: "primary.main" }} />
-                <Typography variant="h4">{currentGroup.groupName}</Typography>
+                <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2.125rem" } }}>{currentGroup.groupName}</Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 Gestión del grupo — miembros y roles.
@@ -349,7 +367,7 @@ export default function GrupoPage() {
               <TableRow>
                 <TableCell>Miembro</TableCell>
                 <TableCell>Rol</TableCell>
-                <TableCell>Jugador vinculado</TableCell>
+                <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Jugador vinculado</TableCell>
                 {isOwner && <TableCell align="right">Acciones</TableCell>}
               </TableRow>
             </TableHead>
@@ -372,7 +390,7 @@ export default function GrupoPage() {
                             <Typography variant="body2" fontWeight={600}>
                               {m.name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
                               {m.email}
                             </Typography>
                           </Box>
@@ -399,7 +417,7 @@ export default function GrupoPage() {
                           />
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
                         {linkedPlayer ? (
                           <Chip label={linkedPlayer.name} size="small" variant="outlined" icon={<LinkIcon />} />
                         ) : (
@@ -456,7 +474,7 @@ export default function GrupoPage() {
       </Container>
 
       {/* Add member dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} fullWidth maxWidth="sm" fullScreen={isMobile}>
         <DialogTitle>Agregar miembro</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -494,7 +512,7 @@ export default function GrupoPage() {
       </Dialog>
 
       {/* Link player dialog */}
-      <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} fullWidth maxWidth="sm" fullScreen={isMobile}>
         <DialogTitle>Vincular jugador a {linkMember?.name}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -529,7 +547,7 @@ export default function GrupoPage() {
       </Dialog>
 
       {/* Delete group dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} fullWidth maxWidth="sm" fullScreen={isMobile}>
         <DialogTitle sx={{ color: "error.main" }}>Eliminar grupo</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>

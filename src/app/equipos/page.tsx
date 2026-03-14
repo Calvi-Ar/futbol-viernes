@@ -23,6 +23,7 @@ import { Player } from "@/lib/types";
 import { addMatchToBigQuery } from "@/lib/sync-bigquery";
 import { loadMatches, saveMatches } from "@/lib/storage";
 import { buildTeams, getPlayerScore } from "@/lib/teams";
+import { useGroup } from "@/app/GroupContext";
 import type { TeamResult } from "@/lib/types";
 
 type RecentTeams = { teamAIds: string[]; teamBIds: string[] };
@@ -32,10 +33,12 @@ interface EquiposData {
   selectedPlayers: Player[];
   matchSize: number;
   recentMatches: RecentTeams[];
+  groupId?: string;
 }
 
 export default function EquiposPage() {
   const router = useRouter();
+  const { currentGroup } = useGroup();
   const [data, setData] = useState<EquiposData | null>(null);
   const [teams, setTeams] = useState<TeamResult | null>(null);
   const [confirmPlay, setConfirmPlay] = useState(false);
@@ -49,17 +52,26 @@ export default function EquiposPage() {
     if (raw) {
       try {
         const parsed: EquiposData = JSON.parse(raw);
+        if (parsed.groupId && currentGroup && parsed.groupId !== currentGroup.groupId) {
+          sessionStorage.removeItem("equipos-data");
+          return;
+        }
         setData(parsed);
         setTeams(parsed.teams);
       } catch {
         /* invalid data */
       }
     }
-  }, []);
+  }, [currentGroup]);
 
   const handleRemix = () => {
-    if (!data) return;
-    const newTeams = buildTeams(data.selectedPlayers, data.matchSize, data.recentMatches);
+    if (!data || !teams) return;
+    const currentAsRecent = {
+      teamAIds: teams.teamA.map((p) => p.id),
+      teamBIds: teams.teamB.map((p) => p.id),
+    };
+    const recentWithCurrent = [...(data.recentMatches ?? []), currentAsRecent];
+    const newTeams = buildTeams(data.selectedPlayers, data.matchSize, recentWithCurrent);
     setTeams(newTeams);
     setConfirmPlay(false);
   };
@@ -95,7 +107,7 @@ export default function EquiposPage() {
       <Box sx={{ pb: 8 }}>
         <Box sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)", py: 4, px: { xs: 2, sm: 4 } }}>
           <Container maxWidth="md" disableGutters>
-            <Typography variant="h4">Equipos</Typography>
+            <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2.125rem" } }}>Equipos</Typography>
           </Container>
         </Box>
         <Container maxWidth="md" sx={{ pt: 4, px: { xs: 2, sm: 4 } }} disableGutters>
@@ -128,7 +140,7 @@ export default function EquiposPage() {
               Jugadores
             </Button>
           </Stack>
-          <Typography variant="h4" sx={{ mt: 1 }}>
+          <Typography variant="h4" sx={{ mt: 1, fontSize: { xs: "1.3rem", sm: "2.125rem" } }}>
             Equipos armados — {data.matchSize} vs {data.matchSize}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -176,20 +188,22 @@ export default function EquiposPage() {
           </Stack>
 
           {!confirmPlay ? (
-            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} useFlexGap>
               <Button
                 variant="outlined"
                 size="large"
                 startIcon={<CasinoIcon />}
                 onClick={handleRemix}
+                fullWidth
               >
-                Mezclar de nuevo
+                Armar de nuevo
               </Button>
               <Button
                 variant="contained"
                 size="large"
                 startIcon={<SportsIcon />}
                 onClick={() => setConfirmPlay(true)}
+                fullWidth
               >
                 ¡A jugar!
               </Button>

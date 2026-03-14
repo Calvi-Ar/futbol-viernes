@@ -23,9 +23,9 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { loadMatches } from "@/lib/storage";
+import { groupFetch } from "@/lib/api-client";
 import { useGroup } from "./GroupContext";
-import type { Player, PreferredPosition, Rating } from "@/lib/types";
+import type { Match, Player, PreferredPosition, Rating } from "@/lib/types";
 
 const POSITION_OPTIONS: { value: PreferredPosition; label: string }[] = [
   { value: null, label: "Sin definir" },
@@ -106,7 +106,7 @@ function CreateGroupDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={typeof window !== "undefined" && window.innerWidth < 600}>
       <DialogTitle>Crear grupo</DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ pt: 1 }}>
@@ -195,16 +195,25 @@ function CreateGroupDialog({
 
 export default function HomePage() {
   const { currentGroup, groups, loading, refetchGroups } = useGroup();
-  const [pendingMatch, setPendingMatch] = useState<ReturnType<typeof loadMatches>[number] | null>(null);
+  const [pendingMatch, setPendingMatch] = useState<Match | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   useEffect(() => {
-    const matches = loadMatches();
-    const pending = matches.find((m) => m.status === "pending") ?? null;
-    setPendingMatch(pending);
-    setHydrated(true);
-  }, []);
+    if (loading) return;
+    if (!currentGroup) {
+      setPendingMatch(null);
+      setHydrated(true);
+      return;
+    }
+    groupFetch("/api/matches")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((matches: Match[]) => {
+        setPendingMatch(matches.find((m) => m.status === "pending") ?? null);
+      })
+      .catch(() => setPendingMatch(null))
+      .finally(() => setHydrated(true));
+  }, [loading, currentGroup]);
 
   if (!hydrated || loading) {
     return (
@@ -256,9 +265,9 @@ export default function HomePage() {
       <Box sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)", py: 4, px: { xs: 2, sm: 4 } }}>
         <Container maxWidth="md" disableGutters>
           <Stack direction="row" alignItems="center" spacing={2}>
-            <SportsSoccerIcon sx={{ fontSize: 40, color: "primary.main" }} />
+            <SportsSoccerIcon sx={{ fontSize: { xs: 32, sm: 40 }, color: "primary.main" }} />
             <Box>
-              <Typography variant="h4">Inicio</Typography>
+              <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2.125rem" } }}>Inicio</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 {currentGroup?.groupName} — armá equipos y registrá resultados.
               </Typography>
