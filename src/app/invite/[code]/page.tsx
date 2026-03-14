@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 import {
   Box,
@@ -18,7 +18,6 @@ import ErrorIcon from "@mui/icons-material/Error";
 
 export default function InvitePage() {
   const { code } = useParams<{ code: string }>();
-  const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
   const [groupName, setGroupName] = useState<string | null>(null);
@@ -50,14 +49,14 @@ export default function InvitePage() {
           setJoined(true);
           setAlreadyMember(data.alreadyMember);
           localStorage.setItem("futbol-current-group-id", data.groupId);
-          setTimeout(() => router.push("/"), 2000);
+          setTimeout(() => { window.location.href = "/"; }, 2000);
         } else {
           setError(data.error ?? "Error al unirse");
         }
       })
       .catch(() => setError("Error al unirse al grupo"))
       .finally(() => setJoining(false));
-  }, [sessionStatus, session, groupName, code, joined, joining, router]);
+  }, [sessionStatus, session, groupName, code, joined, joining]);
 
   return (
     <Box
@@ -87,7 +86,7 @@ export default function InvitePage() {
           <Stack spacing={2} alignItems="center">
             <ErrorIcon sx={{ fontSize: 56, color: "error.main" }} />
             <Typography variant="h6">{error}</Typography>
-            <Button variant="outlined" onClick={() => router.push("/")}>
+            <Button variant="outlined" onClick={() => { window.location.href = "/"; }}>
               Ir al inicio
             </Button>
           </Stack>
