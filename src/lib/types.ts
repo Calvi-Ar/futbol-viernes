@@ -14,10 +14,12 @@ export type Player = {
   age?: number;
   isGoalie: boolean;
   preferredPosition?: PreferredPosition;
+  fanOf?: string;
   ratings: {
     stamina: Rating;
     control: Rating;
     shot: Rating;
+    speed: Rating;
     dribble: Rating;
     defense: Rating;
   };

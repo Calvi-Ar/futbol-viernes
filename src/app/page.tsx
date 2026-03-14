@@ -37,10 +37,11 @@ const POSITION_OPTIONS: { value: PreferredPosition; label: string }[] = [
 ];
 
 const SKILL_FIELDS: { key: keyof Player["ratings"]; label: string }[] = [
-  { key: "stamina", label: "Resistencia" },
-  { key: "control", label: "Control" },
+  { key: "stamina", label: "Estado Físico" },
+  { key: "control", label: "Habilidad de Juego" },
   { key: "shot", label: "Disparo" },
-  { key: "dribble", label: "Regate" },
+  { key: "speed", label: "Velocidad" },
+  { key: "dribble", label: "Gambeta" },
   { key: "defense", label: "Defensa" },
 ];
 
@@ -69,9 +70,10 @@ function CreateGroupDialog({
   const [playerName, setPlayerName] = useState("");
   const [playerAge, setPlayerAge] = useState<number | "">("");
   const [playerPosition, setPlayerPosition] = useState<PreferredPosition>(null);
+  const [playerFanOf, setPlayerFanOf] = useState("");
   const [ratings, setRatings] = useState<Player["ratings"]>({
     stamina: 3 as Rating, control: 3 as Rating, shot: 3 as Rating,
-    dribble: 3 as Rating, defense: 3 as Rating,
+    speed: 3 as Rating, dribble: 3 as Rating, defense: 3 as Rating,
   });
 
   useEffect(() => {
@@ -90,6 +92,7 @@ function CreateGroupDialog({
         age: playerAge || undefined,
         isGoalie: playerPosition === "goalkeeper",
         preferredPosition: playerPosition,
+        fanOf: playerFanOf.trim() || undefined,
         ratings,
       };
       const res = await fetch("/api/groups", {
@@ -154,6 +157,13 @@ function CreateGroupDialog({
               ))}
             </TextField>
           </Stack>
+          <TextField
+            label="Hincha de"
+            value={playerFanOf}
+            onChange={(e) => setPlayerFanOf(e.target.value)}
+            fullWidth
+            placeholder="Ej: River Plate, Racing, etc."
+          />
           <Stack spacing={1.5}>
             <Typography variant="subtitle2" color="text.secondary">
               Habilidades (1-5)

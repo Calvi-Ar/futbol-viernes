@@ -30,10 +30,11 @@ const POSITION_OPTIONS: { value: PreferredPosition; label: string }[] = [
 ];
 
 const RATING_FIELDS: { key: keyof Player["ratings"]; label: string }[] = [
-  { key: "stamina", label: "Resistencia" },
-  { key: "control", label: "Control" },
+  { key: "stamina", label: "Estado Físico" },
+  { key: "control", label: "Habilidad de Juego" },
   { key: "shot", label: "Disparo" },
-  { key: "dribble", label: "Regate" },
+  { key: "speed", label: "Velocidad" },
+  { key: "dribble", label: "Gambeta" },
   { key: "defense", label: "Defensa" },
 ];
 
@@ -52,10 +53,12 @@ export default function InvitePage() {
   const [playerAge, setPlayerAge] = useState<number | "">("");
   const [playerPosition, setPlayerPosition] = useState<PreferredPosition>(null);
   const [playerIsGoalie, setPlayerIsGoalie] = useState(false);
+  const [playerFanOf, setPlayerFanOf] = useState("");
   const [ratings, setRatings] = useState<Player["ratings"]>({
     stamina: 3 as Rating,
     control: 3 as Rating,
     shot: 3 as Rating,
+    speed: 3 as Rating,
     dribble: 3 as Rating,
     defense: 3 as Rating,
   });
@@ -95,6 +98,7 @@ export default function InvitePage() {
           age: playerAge || undefined,
           isGoalie: playerIsGoalie,
           preferredPosition: playerPosition,
+          fanOf: playerFanOf.trim() || undefined,
           ratings,
         };
       }
@@ -257,6 +261,14 @@ export default function InvitePage() {
                 ))}
               </TextField>
             </Stack>
+
+            <TextField
+              label="Hincha de"
+              value={playerFanOf}
+              onChange={(e) => setPlayerFanOf(e.target.value)}
+              fullWidth
+              placeholder="Ej: River Plate, Racing, etc."
+            />
 
             <Stack spacing={2}>
               <Typography variant="subtitle2" color="text.secondary">

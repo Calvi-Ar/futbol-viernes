@@ -49,8 +49,10 @@ export const PLAYERS_SCHEMA = [
   { name: "stamina", type: "INTEGER", mode: "REQUIRED" },
   { name: "control", type: "INTEGER", mode: "REQUIRED" },
   { name: "shot", type: "INTEGER", mode: "REQUIRED" },
+  { name: "speed", type: "INTEGER", mode: "REQUIRED" },
   { name: "dribble", type: "INTEGER", mode: "REQUIRED" },
   { name: "defense", type: "INTEGER", mode: "REQUIRED" },
+  { name: "fan_of", type: "STRING", mode: "NULLABLE" },
   { name: "created_at", type: "TIMESTAMP", mode: "REQUIRED" },
   { name: "updated_at", type: "TIMESTAMP", mode: "REQUIRED" },
 ];
@@ -189,6 +191,20 @@ async function ensureGroupIdColumns(): Promise<void> {
     const msg = String(e instanceof Error ? e.message : e);
     if (!msg.includes("Already exists") && !msg.includes("duplicate")) {
       console.warn("Could not add invite_code to groups:", msg);
+    }
+  }
+
+  for (const col of ["speed", "fan_of"]) {
+    try {
+      const colType = col === "fan_of" ? "STRING" : "INTEGER";
+      await bigquery.query({
+        query: `ALTER TABLE ${PLAYERS_TABLE_FULL} ADD COLUMN IF NOT EXISTS ${col} ${colType}`,
+      });
+    } catch (e) {
+      const msg = String(e instanceof Error ? e.message : e);
+      if (!msg.includes("Already exists") && !msg.includes("duplicate")) {
+        console.warn(`Could not add ${col} to players:`, msg);
+      }
     }
   }
 }
@@ -531,11 +547,12 @@ export function canEdit(role: GroupRole | null): boolean {
 
 function playerInsertSQL(p: Player, groupId: string): string {
   return `INSERT INTO ${PLAYERS_TABLE_FULL}
-    (player_id, name, age, is_goalie, preferred_position, stamina, control, shot, dribble, defense, group_id, created_at, updated_at)
+    (player_id, name, age, is_goalie, preferred_position, fan_of, stamina, control, shot, speed, dribble, defense, group_id, created_at, updated_at)
     VALUES (
       ${sqlStr(p.id)}, ${sqlStr(p.name)}, ${sqlInt(p.age)}, ${sqlBool(p.isGoalie)},
-      ${sqlStr(p.preferredPosition)}, ${sqlInt(p.ratings.stamina)}, ${sqlInt(p.ratings.control)},
-      ${sqlInt(p.ratings.shot)}, ${sqlInt(p.ratings.dribble)}, ${sqlInt(p.ratings.defense)},
+      ${sqlStr(p.preferredPosition)}, ${sqlStr(p.fanOf)},
+      ${sqlInt(p.ratings.stamina)}, ${sqlInt(p.ratings.control)},
+      ${sqlInt(p.ratings.shot)}, ${sqlInt(p.ratings.speed)}, ${sqlInt(p.ratings.dribble)}, ${sqlInt(p.ratings.defense)},
       ${sqlStr(groupId)}, ${sqlTs()}, ${sqlTs()}
     )`;
 }
@@ -635,10 +652,12 @@ function rowToPlayer(r: PlayerRow): Player {
     isGoalie: Boolean(nv("is_goalie")),
     preferredPosition:
       (nv("preferred_position") as Player["preferredPosition"]) ?? undefined,
+    fanOf: nv("fan_of") != null ? String(nv("fan_of")) : undefined,
     ratings: {
       stamina: Number(nv("stamina") ?? 3) as Player["ratings"]["stamina"],
       control: Number(nv("control") ?? 3) as Player["ratings"]["control"],
       shot: Number(nv("shot") ?? 3) as Player["ratings"]["shot"],
+      speed: Number(nv("speed") ?? 3) as Player["ratings"]["speed"],
       dribble: Number(nv("dribble") ?? 3) as Player["ratings"]["dribble"],
       defense: Number(nv("defense") ?? 3) as Player["ratings"]["defense"],
     },
@@ -648,7 +667,7 @@ function rowToPlayer(r: PlayerRow): Player {
 export async function getPlayersFromBigQuery(groupId: string): Promise<Player[]> {
   const bigquery = await getBigQueryClient();
   const [rows] = await bigquery.query({
-    query: `SELECT player_id, name, age, is_goalie, preferred_position, stamina, control, shot, dribble, defense
+    query: `SELECT player_id, name, age, is_goalie, preferred_position, fan_of, stamina, control, shot, speed, dribble, defense
             FROM ${PLAYERS_TABLE_FULL}
             WHERE group_id = @groupId
             ORDER BY name`,

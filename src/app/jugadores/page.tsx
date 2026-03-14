@@ -48,10 +48,11 @@ import { loadPlayers, loadMatches, savePlayers } from "@/lib/storage";
 import { buildTeams, getPlayerScore } from "@/lib/teams";
 
 const ratingFields: Array<{ key: keyof Player["ratings"]; label: string }> = [
-  { key: "stamina", label: "Resistencia" },
-  { key: "control", label: "Control de balón" },
+  { key: "stamina", label: "Estado Físico" },
+  { key: "control", label: "Habilidad de Juego" },
   { key: "shot", label: "Potencia de tiro" },
-  { key: "dribble", label: "Regate" },
+  { key: "speed", label: "Velocidad" },
+  { key: "dribble", label: "Gambeta" },
   { key: "defense", label: "Defensa" },
 ];
 
@@ -64,7 +65,7 @@ const ratingMarks = [
 ];
 
 const defaultRatings: Player["ratings"] = {
-  stamina: 3, control: 3, shot: 3, dribble: 3, defense: 3,
+  stamina: 3, control: 3, shot: 3, speed: 3, dribble: 3, defense: 3,
 };
 
 const MATCH_SIZES = [5, 6, 7, 8] as const;
@@ -91,6 +92,7 @@ export default function JugadoresPage() {
   const [age, setAge] = useState<number | "">("");
   const [isGoalie, setIsGoalie] = useState(false);
   const [preferredPosition, setPreferredPosition] = useState<PreferredPosition>(null);
+  const [fanOf, setFanOf] = useState("");
   const [ratings, setRatings] = useState<Player["ratings"]>(defaultRatings);
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -140,6 +142,7 @@ export default function JugadoresPage() {
     setAge("");
     setIsGoalie(false);
     setPreferredPosition(null);
+    setFanOf("");
     setRatings(defaultRatings);
     setEditingId(null);
   };
@@ -155,6 +158,7 @@ export default function JugadoresPage() {
         age: ageNum,
         isGoalie,
         preferredPosition: preferredPosition ?? undefined,
+        fanOf: fanOf.trim() || undefined,
         ratings: { ...ratings },
       };
       persist(players.map((p) => (p.id === editingId ? updated : p)));
@@ -173,6 +177,7 @@ export default function JugadoresPage() {
         age: ageNum,
         isGoalie,
         preferredPosition: preferredPosition ?? undefined,
+        fanOf: fanOf.trim() || undefined,
         ratings,
       };
       const newPlayer: Player = {
@@ -190,6 +195,7 @@ export default function JugadoresPage() {
     setAge(player.age ?? "");
     setIsGoalie(player.isGoalie);
     setPreferredPosition(player.preferredPosition ?? null);
+    setFanOf(player.fanOf ?? "");
     setRatings({ ...player.ratings });
     setEditingId(player.id);
     setIsAddPlayerModalOpen(true);
@@ -508,6 +514,15 @@ export default function JugadoresPage() {
                 </MenuItem>
               ))}
             </TextField>
+
+            <TextField
+              label="Hincha de"
+              value={fanOf}
+              onChange={(e) => setFanOf(e.target.value)}
+              size="small"
+              fullWidth
+              placeholder="Ej: River Plate, Racing, etc."
+            />
 
             <Stack spacing={2.5}>
               {ratingFields.map((field) => (
