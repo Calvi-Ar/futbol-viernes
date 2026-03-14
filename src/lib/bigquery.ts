@@ -181,6 +181,16 @@ async function ensureGroupIdColumns(): Promise<void> {
       }
     }
   }
+  try {
+    await bigquery.query({
+      query: `ALTER TABLE ${GROUPS_TABLE_FULL} ADD COLUMN IF NOT EXISTS invite_code STRING`,
+    });
+  } catch (e) {
+    const msg = String(e instanceof Error ? e.message : e);
+    if (!msg.includes("Already exists") && !msg.includes("duplicate")) {
+      console.warn("Could not add invite_code to groups:", msg);
+    }
+  }
 }
 
 export async function setupBigQuery(): Promise<{
@@ -429,6 +439,62 @@ export async function migrateExistingDataToGroup(groupId: string): Promise<void>
   await bigquery.query({
     query: `UPDATE ${MATCHES_TABLE_FULL} SET group_id = ${sqlStr(groupId)} WHERE group_id IS NULL`,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Invite links
+// ---------------------------------------------------------------------------
+
+function generateInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+export async function getOrCreateInviteCode(groupId: string): Promise<string> {
+  const bigquery = await getBigQueryClient();
+  const [rows] = await bigquery.query({
+    query: `SELECT invite_code FROM ${GROUPS_TABLE_FULL} WHERE group_id = @groupId LIMIT 1`,
+    params: { groupId },
+  });
+  const existing = (rows as Record<string, unknown>[])[0]?.invite_code;
+  if (existing) return String(existing);
+
+  const code = generateInviteCode();
+  await bigquery.query({
+    query: `UPDATE ${GROUPS_TABLE_FULL} SET invite_code = ${sqlStr(code)} WHERE group_id = @groupId`,
+    params: { groupId },
+  });
+  return code;
+}
+
+export async function regenerateInviteCode(groupId: string): Promise<string> {
+  const bigquery = await getBigQueryClient();
+  const code = generateInviteCode();
+  await bigquery.query({
+    query: `UPDATE ${GROUPS_TABLE_FULL} SET invite_code = ${sqlStr(code)} WHERE group_id = @groupId`,
+    params: { groupId },
+  });
+  return code;
+}
+
+export async function getGroupByInviteCode(
+  code: string
+): Promise<{ groupId: string; name: string } | null> {
+  const bigquery = await getBigQueryClient();
+  const [rows] = await bigquery.query({
+    query: `SELECT group_id, name FROM ${GROUPS_TABLE_FULL} WHERE invite_code = @code LIMIT 1`,
+    params: { code },
+  });
+  const list = rows as Record<string, unknown>[];
+  if (list.length === 0) return null;
+  return {
+    groupId: String(list[0].group_id ?? ""),
+    name: String(list[0].name ?? ""),
+  };
 }
 
 // ---------------------------------------------------------------------------

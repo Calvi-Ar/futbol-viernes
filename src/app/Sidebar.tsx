@@ -242,7 +242,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname.startsWith("/invite")) {
     return <>{children}</>;
   }
 

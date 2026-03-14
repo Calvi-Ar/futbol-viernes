@@ -30,6 +30,9 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LinkIcon from "@mui/icons-material/Link";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import ShareIcon from "@mui/icons-material/Share";
 import { useGroup, type GroupRole } from "@/app/GroupContext";
 import { groupFetch } from "@/lib/api-client";
 import type { Player } from "@/lib/types";
@@ -72,7 +75,14 @@ export default function GrupoPage() {
   const [linkMember, setLinkMember] = useState<Member | null>(null);
   const [linkPlayerId, setLinkPlayerId] = useState("");
 
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+
   const isOwner = currentGroup?.role === "owner";
+
+  const inviteUrl = inviteCode
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${inviteCode}`
+    : null;
 
   const fetchData = useCallback(async () => {
     if (!currentGroup) return;
@@ -91,9 +101,43 @@ export default function GrupoPage() {
     }
   }, [currentGroup]);
 
+  const fetchInviteCode = useCallback(async () => {
+    if (!currentGroup || !isOwner) return;
+    try {
+      const res = await fetch(`/api/groups/${currentGroup.groupId}/invite`);
+      if (res.ok) {
+        const data = await res.json();
+        setInviteCode(data.code);
+      }
+    } catch { /* ignore */ }
+  }, [currentGroup, isOwner]);
+
+  const handleRegenerateCode = async () => {
+    if (!currentGroup) return;
+    const res = await fetch(`/api/groups/${currentGroup.groupId}/invite`, {
+      method: "POST",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setInviteCode(data.code);
+      setSuccess("Link de invitación regenerado");
+    }
+  };
+
+  const handleCopyInvite = () => {
+    if (inviteUrl) {
+      navigator.clipboard.writeText(inviteUrl);
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
+    }
+  };
+
   useEffect(() => {
-    if (!groupLoading && currentGroup) fetchData();
-  }, [groupLoading, currentGroup, fetchData]);
+    if (!groupLoading && currentGroup) {
+      fetchData();
+      fetchInviteCode();
+    }
+  }, [groupLoading, currentGroup, fetchData, fetchInviteCode]);
 
   const handleAddMember = async () => {
     if (!currentGroup || !inviteEmail.trim()) return;
@@ -224,6 +268,47 @@ export default function GrupoPage() {
           <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 2 }}>
             {success}
           </Alert>
+        )}
+
+        {isOwner && inviteUrl && (
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <ShareIcon color="primary" />
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Link de invitación
+                </Typography>
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                Compartí este link para que otros jugadores se unan al grupo como visores.
+                Después podés cambiarles el rol.
+              </Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+                <TextField
+                  value={inviteUrl}
+                  size="small"
+                  fullWidth
+                  slotProps={{ input: { readOnly: true } }}
+                  sx={{ "& input": { fontSize: "0.85rem" } }}
+                />
+                <Stack direction="row" spacing={1} flexShrink={0}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<ContentCopyIcon />}
+                    onClick={handleCopyInvite}
+                  >
+                    {inviteCopied ? "¡Copiado!" : "Copiar"}
+                  </Button>
+                  <Tooltip title="Regenerar link (invalida el anterior)">
+                    <IconButton size="small" onClick={handleRegenerateCode}>
+                      <RefreshIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </Stack>
+            </Stack>
+          </Paper>
         )}
 
         <Paper>

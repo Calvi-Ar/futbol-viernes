@@ -14,8 +14,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     authorized({ auth: session, request }) {
       const isLoggedIn = !!session?.user;
-      const isOnLogin = request.nextUrl.pathname === "/login";
-      if (isOnLogin) return true;
+      const { pathname } = request.nextUrl;
+      if (pathname === "/login" || pathname.startsWith("/invite")) return true;
       return isLoggedIn;
     },
     async signIn({ user, profile }) {
