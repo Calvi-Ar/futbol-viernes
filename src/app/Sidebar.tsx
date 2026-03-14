@@ -3,13 +3,18 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
+  Avatar,
   Box,
+  Button,
+  Chip,
   Drawer,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuItem,
   Stack,
+  TextField,
   Typography,
   useMediaQuery,
   useTheme,
@@ -23,7 +28,12 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
+import LoginIcon from "@mui/icons-material/Login";
+import LogoutIcon from "@mui/icons-material/Logout";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useState } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
+import { useGroup } from "./GroupContext";
 
 const DRAWER_WIDTH = 260;
 
@@ -33,10 +43,126 @@ const navItems = [
   { label: "Equipos", href: "/equipos", icon: <GroupsIcon /> },
   { label: "Partidos", href: "/partidos", icon: <EmojiEventsIcon /> },
   { label: "Estadísticas", href: "/estadisticas", icon: <BarChartIcon /> },
-];
+  { label: "Grupo", href: "/grupo", icon: <SettingsIcon />, ownerOnly: false },
+] as const;
+
+const roleLabels: Record<string, string> = {
+  owner: "Dueño",
+  admin: "Admin",
+  viewer: "Visor",
+};
+
+function GroupSelector() {
+  const { groups, currentGroup, setCurrentGroupId } = useGroup();
+
+  if (groups.length <= 1) {
+    if (!currentGroup) return null;
+    return (
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1 }}>
+            {currentGroup.groupName}
+          </Typography>
+          <Chip
+            label={roleLabels[currentGroup.role] ?? currentGroup.role}
+            size="small"
+            variant="outlined"
+            color={currentGroup.role === "owner" ? "primary" : currentGroup.role === "admin" ? "secondary" : "default"}
+          />
+        </Stack>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ px: 2, pb: 1 }}>
+      <TextField
+        select
+        fullWidth
+        size="small"
+        value={currentGroup?.groupId ?? ""}
+        onChange={(e) => {
+          setCurrentGroupId(e.target.value);
+          window.location.reload();
+        }}
+        label="Grupo"
+      >
+        {groups.map((g) => (
+          <MenuItem key={g.groupId} value={g.groupId}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%" }}>
+              <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+                {g.groupName}
+              </Typography>
+              <Chip
+                label={roleLabels[g.role] ?? g.role}
+                size="small"
+                variant="outlined"
+                sx={{ height: 20, fontSize: "0.65rem" }}
+              />
+            </Stack>
+          </MenuItem>
+        ))}
+      </TextField>
+    </Box>
+  );
+}
+
+function UserSection() {
+  const { data: session, status } = useSession();
+
+  if (status === "loading") return null;
+
+  if (!session) {
+    return (
+      <Box sx={{ px: 2, pb: 2 }}>
+        <Button
+          variant="outlined"
+          fullWidth
+          startIcon={<LoginIcon />}
+          onClick={() => signIn("google")}
+          size="small"
+        >
+          Iniciar sesión
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ px: 2, pb: 2 }}>
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+        <Avatar
+          src={session.user?.image ?? undefined}
+          alt={session.user?.name ?? ""}
+          sx={{ width: 32, height: 32 }}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={600} noWrap>
+            {session.user?.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+            {session.user?.email}
+          </Typography>
+        </Box>
+      </Stack>
+      <Button
+        variant="text"
+        fullWidth
+        startIcon={<LogoutIcon />}
+        onClick={() => signOut()}
+        size="small"
+        color="secondary"
+        sx={{ justifyContent: "flex-start" }}
+      >
+        Cerrar sesión
+      </Button>
+    </Box>
+  );
+}
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
+  const { currentGroup } = useGroup();
 
   return (
     <Box
@@ -68,6 +194,8 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         )}
       </Stack>
 
+      <GroupSelector />
+
       <List sx={{ px: 1.5, flex: 1 }} disablePadding>
         {navItems.map((item) => {
           const active = pathname === item.href;
@@ -78,6 +206,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               href={item.href}
               onClick={onClose}
               selected={active}
+              disabled={!currentGroup}
               sx={{
                 borderRadius: 2,
                 mb: 0.5,
@@ -102,13 +231,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         })}
       </List>
 
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ px: 2.5, pb: 2, opacity: 0.5 }}
-      >
-        v2.0 — BigQuery
-      </Typography>
+      <UserSection />
     </Box>
   );
 }
@@ -117,6 +240,11 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>

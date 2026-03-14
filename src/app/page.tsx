@@ -5,15 +5,25 @@ import Link from "next/link";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import GroupsIcon from "@mui/icons-material/Groups";
+import AddIcon from "@mui/icons-material/Add";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
   Paper,
   Stack,
+  Switch,
+  TextField,
   Typography,
 } from "@mui/material";
 import { loadMatches } from "@/lib/storage";
+import { useGroup } from "./GroupContext";
 
 function formatDate(dateStr: string) {
   try {
@@ -24,9 +34,85 @@ function formatDate(dateStr: string) {
   }
 }
 
+function CreateGroupDialog({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [migrateExisting, setMigrateExisting] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), migrateExisting }),
+      });
+      if (res.ok) {
+        onCreated();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Crear grupo</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField
+            label="Nombre del grupo"
+            placeholder="Ej: Amigos fútbol viernes"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            fullWidth
+            autoFocus
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={migrateExisting}
+                onChange={(e) => setMigrateExisting(e.target.checked)}
+              />
+            }
+            label="Migrar jugadores y partidos existentes a este grupo"
+          />
+          <Typography variant="caption" color="text.secondary">
+            Si ya tenés jugadores y partidos cargados, activá esta opción para
+            asociarlos al nuevo grupo.
+          </Typography>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} color="secondary">
+          Cancelar
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleCreate}
+          disabled={!name.trim() || saving}
+        >
+          {saving ? "Creando..." : "Crear grupo"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export default function HomePage() {
+  const { currentGroup, groups, loading, refetchGroups } = useGroup();
   const [pendingMatch, setPendingMatch] = useState<ReturnType<typeof loadMatches>[number] | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   useEffect(() => {
     const matches = loadMatches();
@@ -35,7 +121,50 @@ export default function HomePage() {
     setHydrated(true);
   }, []);
 
-  if (!hydrated) return null;
+  if (!hydrated || loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", pt: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <Box sx={{ pb: 8 }}>
+        <Container maxWidth="sm" sx={{ pt: 10, textAlign: "center" }}>
+          <Paper sx={{ p: 5 }}>
+            <SportsSoccerIcon sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+            <Typography variant="h5" fontWeight={700} gutterBottom>
+              ¡Bienvenido!
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 3 }}>
+              Para empezar, creá tu primer grupo. Un grupo reúne a los
+              jugadores que se juntan a jugar, y te permite gestionar equipos,
+              partidos y estadísticas.
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<AddIcon />}
+              onClick={() => setShowCreateGroup(true)}
+            >
+              Crear grupo
+            </Button>
+          </Paper>
+        </Container>
+        <CreateGroupDialog
+          open={showCreateGroup}
+          onClose={() => setShowCreateGroup(false)}
+          onCreated={async () => {
+            setShowCreateGroup(false);
+            await refetchGroups();
+            window.location.reload();
+          }}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ pb: 8 }}>
@@ -46,7 +175,7 @@ export default function HomePage() {
             <Box>
               <Typography variant="h4">Inicio</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Fútbol del viernes — armá equipos y registrá resultados.
+                {currentGroup?.groupName} — armá equipos y registrá resultados.
               </Typography>
             </Box>
           </Stack>

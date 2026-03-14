@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { groupFetch } from "@/lib/api-client";
+import { useGroup } from "@/app/GroupContext";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -47,7 +49,16 @@ import { loadMatches, loadPlayers, saveMatches } from "@/lib/storage";
 import { buildTeams, getPlayerScore } from "@/lib/teams";
 
 export default function PartidosPage() {
+  return (
+    <Suspense>
+      <PartidosContent />
+    </Suspense>
+  );
+}
+
+function PartidosContent() {
   const searchParams = useSearchParams();
+  const { currentGroup, loading: groupLoading, canEdit } = useGroup();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -72,9 +83,10 @@ export default function PartidosPage() {
   const [scorerGoals, setScorerGoals] = useState(1);
 
   useEffect(() => {
+    if (groupLoading || !currentGroup) return;
     Promise.all([
-      fetch("/api/matches").then((r) => (r.ok ? r.json() : Promise.reject())),
-      fetch("/api/players").then((r) => (r.ok ? r.json() : Promise.reject())),
+      groupFetch("/api/matches").then((r) => (r.ok ? r.json() : Promise.reject())),
+      groupFetch("/api/players").then((r) => (r.ok ? r.json() : Promise.reject())),
     ])
       .then(([matchesData, playersData]: [Match[], Player[]]) => {
         setMatches(matchesData);
@@ -86,7 +98,7 @@ export default function PartidosPage() {
         setPlayers(loadPlayers());
       })
       .finally(() => setHydrated(true));
-  }, []);
+  }, [groupLoading, currentGroup]);
 
   useEffect(() => {
     if (!hydrated || matches.length === 0 || openedPendingRef.current) return;
@@ -290,14 +302,16 @@ export default function PartidosPage() {
                 Registra resultados y revisá cómo se armaron los equipos.
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenNewMatch}
-              disabled={players.length < 2}
-            >
-              Nuevo partido
-            </Button>
+            {canEdit && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenNewMatch}
+                disabled={players.length < 2}
+              >
+                Nuevo partido
+              </Button>
+            )}
           </Stack>
         </Container>
       </Box>
@@ -354,24 +368,26 @@ export default function PartidosPage() {
                       </Typography>
                     </Stack>
                   </AccordionSummary>
-                  <Box sx={{ display: "flex", gap: 0.5, pr: 1, flexShrink: 0 }}>
-                    <Tooltip title="Editar partido">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditMatch(match)}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Eliminar partido">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteMatch(match.id)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
+                  {canEdit && (
+                    <Box sx={{ display: "flex", gap: 0.5, pr: 1, flexShrink: 0 }}>
+                      <Tooltip title="Editar partido">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditMatch(match)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Eliminar partido">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteMatch(match.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  )}
                 </Box>
                 <AccordionDetails>
                   <Stack spacing={2}>

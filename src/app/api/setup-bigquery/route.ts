@@ -7,6 +7,10 @@ import { setupBigQuery } from "@/lib/bigquery";
  * in the GCP project (GCP_PROJECT_ID). If using Secret Manager (BIGQUERY_CREDENTIALS_SECRET),
  * ADC or GOOGLE_APPLICATION_CREDENTIALS are required to fetch the secret.
  */
+export async function GET() {
+  return POST();
+}
+
 export async function POST() {
   try {
     const result = await setupBigQuery();

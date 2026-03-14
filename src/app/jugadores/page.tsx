@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { groupFetch } from "@/lib/api-client";
+import { useGroup } from "@/app/GroupContext";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import CloseIcon from "@mui/icons-material/Close";
@@ -76,6 +78,7 @@ const PREFERRED_POSITION_OPTIONS: { value: PreferredPosition; label: string }[] 
 
 export default function JugadoresPage() {
   const router = useRouter();
+  const { currentGroup, loading: groupLoading, canEdit } = useGroup();
   const [players, setPlayers] = useState<Player[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [matchSize, setMatchSize] = useState(7);
@@ -92,7 +95,8 @@ export default function JugadoresPage() {
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
 
   useEffect(() => {
-    fetch("/api/players")
+    if (groupLoading || !currentGroup) return;
+    groupFetch("/api/players")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: Player[]) => {
         setPlayers(data);
@@ -103,11 +107,11 @@ export default function JugadoresPage() {
       })
       .finally(() => setHydrated(true));
 
-    fetch("/api/matches")
+    groupFetch("/api/matches")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: Match[]) => setRecentMatches(data.slice(0, 3)))
       .catch(() => setRecentMatches(loadMatches().slice(0, 3)));
-  }, []);
+  }, [groupLoading, currentGroup]);
 
   const persist = useCallback((next: Player[]) => {
     setPlayers(next);
@@ -275,14 +279,16 @@ export default function JugadoresPage() {
                   Los arqueros suman +2 al balance para repartir mejor.
                 </Typography>
               </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                <Button variant="contained" startIcon={<PersonAddIcon />} onClick={handleOpenAddPlayer}>
-                  Agregar jugador
-                </Button>
-                <Button variant="outlined" color="error" size="small" onClick={handleClearAll}>
-                  Limpiar todo
-                </Button>
-              </Stack>
+              {canEdit && (
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                  <Button variant="contained" startIcon={<PersonAddIcon />} onClick={handleOpenAddPlayer}>
+                    Agregar jugador
+                  </Button>
+                  <Button variant="outlined" color="error" size="small" onClick={handleClearAll}>
+                    Limpiar todo
+                  </Button>
+                </Stack>
+              )}
             </Stack>
 
             <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} spacing={2} flexWrap="wrap">
@@ -338,7 +344,7 @@ export default function JugadoresPage() {
                         <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Edad</TableCell>
                         <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Posición</TableCell>
                         <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Habilidad</TableCell>
-                        <TableCell align="right" sx={{ bgcolor: "background.paper" }}>Acciones</TableCell>
+                        {canEdit && <TableCell align="right" sx={{ bgcolor: "background.paper" }}>Acciones</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -373,18 +379,20 @@ export default function JugadoresPage() {
                           <TableCell align="center">
                             <Chip label={getPlayerScore(player)} size="small" />
                           </TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Editar">
-                              <IconButton size="small" onClick={() => handleEdit(player)}>
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Eliminar">
-                              <IconButton size="small" onClick={() => handleRemoveClick(player)}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
+                          {canEdit && (
+                            <TableCell align="right">
+                              <Tooltip title="Editar">
+                                <IconButton size="small" onClick={() => handleEdit(player)}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Eliminar">
+                                <IconButton size="small" onClick={() => handleRemoveClick(player)}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

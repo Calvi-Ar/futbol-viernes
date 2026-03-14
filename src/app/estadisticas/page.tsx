@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { groupFetch } from "@/lib/api-client";
+import { useGroup } from "@/app/GroupContext";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
@@ -128,12 +130,14 @@ function RankingTable({
 }
 
 export default function EstadisticasPage() {
+  const { currentGroup, loading: groupLoading } = useGroup();
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/stats")
+    if (groupLoading || !currentGroup) return;
+    groupFetch("/api/stats")
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load stats");
         return r.json();
@@ -141,7 +145,7 @@ export default function EstadisticasPage() {
       .then((data: PlayerStats[]) => setStats(data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [groupLoading, currentGroup]);
 
   return (
     <Box sx={{ pb: 8 }}>
