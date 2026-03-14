@@ -29,6 +29,20 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## BigQuery (GCP)
+
+The app can create a BigQuery dataset and tables in project **ataxe-reports**.
+
+**Full setup guide:** see **[docs/BIGQUERY_SETUP.md](docs/BIGQUERY_SETUP.md)** for step-by-step instructions (enable API, create service account, configure `.env.local`, create dataset and tables).
+
+**Quick steps:**
+1. Enable BigQuery API in the [GCP Console](https://console.cloud.google.com/apis/library/bigquery.googleapis.com).
+2. Create a service account with **BigQuery Admin**, download its JSON key.
+3. Copy `.env.example` to `.env.local` and set `GOOGLE_APPLICATION_CREDENTIALS` to the key path.
+4. Run the app and call: `curl -X POST http://localhost:3000/api/setup-bigquery`.
+
+**Dataset:** `futbol_viernes` · **Tables:** `matches`, `players`
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
