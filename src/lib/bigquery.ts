@@ -431,6 +431,26 @@ export async function linkPlayerToMember(
   });
 }
 
+export async function deleteGroup(groupId: string): Promise<void> {
+  const bigquery = await getBigQueryClient();
+  await bigquery.query({
+    query: `DELETE FROM ${PLAYERS_TABLE_FULL} WHERE group_id = @groupId`,
+    params: { groupId },
+  });
+  await bigquery.query({
+    query: `DELETE FROM ${MATCHES_TABLE_FULL} WHERE group_id = @groupId`,
+    params: { groupId },
+  });
+  await bigquery.query({
+    query: `DELETE FROM ${GROUP_MEMBERS_TABLE_FULL} WHERE group_id = @groupId`,
+    params: { groupId },
+  });
+  await bigquery.query({
+    query: `DELETE FROM ${GROUPS_TABLE_FULL} WHERE group_id = @groupId`,
+    params: { groupId },
+  });
+}
+
 export async function migrateExistingDataToGroup(groupId: string): Promise<void> {
   const bigquery = await getBigQueryClient();
   await bigquery.query({

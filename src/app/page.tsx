@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -15,15 +16,33 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
+  MenuItem,
   Paper,
+  Slider,
   Stack,
-  Switch,
   TextField,
   Typography,
 } from "@mui/material";
 import { loadMatches } from "@/lib/storage";
 import { useGroup } from "./GroupContext";
+import type { Player, PreferredPosition, Rating } from "@/lib/types";
+
+const POSITION_OPTIONS: { value: PreferredPosition; label: string }[] = [
+  { value: null, label: "Sin definir" },
+  { value: "goalkeeper", label: "Arquero" },
+  { value: "defense", label: "Defensa" },
+  { value: "midfielder", label: "Mediocampista" },
+  { value: "attacker", label: "Atacante" },
+  { value: "winger", label: "Extremo" },
+];
+
+const SKILL_FIELDS: { key: keyof Player["ratings"]; label: string }[] = [
+  { key: "stamina", label: "Resistencia" },
+  { key: "control", label: "Control" },
+  { key: "shot", label: "Disparo" },
+  { key: "dribble", label: "Regate" },
+  { key: "defense", label: "Defensa" },
+];
 
 function formatDate(dateStr: string) {
   try {
@@ -43,18 +62,40 @@ function CreateGroupDialog({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const { data: session } = useSession();
   const [name, setName] = useState("");
-  const [migrateExisting, setMigrateExisting] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [playerName, setPlayerName] = useState("");
+  const [playerAge, setPlayerAge] = useState<number | "">("");
+  const [playerPosition, setPlayerPosition] = useState<PreferredPosition>(null);
+  const [ratings, setRatings] = useState<Player["ratings"]>({
+    stamina: 3 as Rating, control: 3 as Rating, shot: 3 as Rating,
+    dribble: 3 as Rating, defense: 3 as Rating,
+  });
+
+  useEffect(() => {
+    if (open && session?.user?.name) {
+      setPlayerName(session.user.name);
+    }
+  }, [open, session?.user?.name]);
+
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !playerName.trim()) return;
     setSaving(true);
     try {
+      const player: Player = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: playerName.trim(),
+        age: playerAge || undefined,
+        isGoalie: playerPosition === "goalkeeper",
+        preferredPosition: playerPosition,
+        ratings,
+      };
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), migrateExisting }),
+        body: JSON.stringify({ name: name.trim(), migrateExisting: false, player }),
       });
       if (res.ok) {
         onCreated();
@@ -68,7 +109,7 @@ function CreateGroupDialog({
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Crear grupo</DialogTitle>
       <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
+        <Stack spacing={3} sx={{ pt: 1 }}>
           <TextField
             label="Nombre del grupo"
             placeholder="Ej: Amigos fútbol viernes"
@@ -77,19 +118,63 @@ function CreateGroupDialog({
             fullWidth
             autoFocus
           />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={migrateExisting}
-                onChange={(e) => setMigrateExisting(e.target.checked)}
-              />
-            }
-            label="Migrar jugadores y partidos existentes a este grupo"
-          />
-          <Typography variant="caption" color="text.secondary">
-            Si ya tenés jugadores y partidos cargados, activá esta opción para
-            asociarlos al nuevo grupo.
+          <Typography variant="subtitle1" fontWeight={600} sx={{ pt: 1 }}>
+            Tu jugador
           </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: -2 }}>
+            Completá tus datos como jugador del grupo.
+          </Typography>
+          <TextField
+            label="Nombre del jugador"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            fullWidth
+            required
+          />
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Edad"
+              type="number"
+              value={playerAge}
+              onChange={(e) => setPlayerAge(e.target.value ? Number(e.target.value) : "")}
+              sx={{ width: 100 }}
+              slotProps={{ htmlInput: { min: 10, max: 70 } }}
+            />
+            <TextField
+              select
+              label="Posición"
+              value={playerPosition ?? ""}
+              onChange={(e) => setPlayerPosition((e.target.value || null) as PreferredPosition)}
+              fullWidth
+            >
+              {POSITION_OPTIONS.map((opt) => (
+                <MenuItem key={opt.label} value={opt.value ?? ""}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Habilidades (1-5)
+            </Typography>
+            {SKILL_FIELDS.map((field) => (
+              <Stack key={field.key} direction="row" alignItems="center" spacing={2}>
+                <Typography variant="body2" sx={{ width: 90, flexShrink: 0 }}>
+                  {field.label}
+                </Typography>
+                <Slider
+                  value={ratings[field.key]}
+                  onChange={(_, v) => setRatings((prev) => ({ ...prev, [field.key]: v as Rating }))}
+                  min={1} max={5} step={1} marks
+                  valueLabelDisplay="auto" size="small"
+                />
+                <Typography variant="body2" fontWeight={600} sx={{ width: 20, textAlign: "center" }}>
+                  {ratings[field.key]}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -99,7 +184,7 @@ function CreateGroupDialog({
         <Button
           variant="contained"
           onClick={handleCreate}
-          disabled={!name.trim() || saving}
+          disabled={!name.trim() || !playerName.trim() || saving}
         >
           {saving ? "Creando..." : "Crear grupo"}
         </Button>

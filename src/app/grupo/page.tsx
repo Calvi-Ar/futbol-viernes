@@ -59,7 +59,7 @@ const roleColors: Record<GroupRole, "primary" | "secondary" | "default"> = {
 };
 
 export default function GrupoPage() {
-  const { currentGroup, loading: groupLoading } = useGroup();
+  const { currentGroup, loading: groupLoading, refetchGroups } = useGroup();
   const [members, setMembers] = useState<Member[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +77,9 @@ export default function GrupoPage() {
 
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isOwner = currentGroup?.role === "owner";
 
@@ -129,6 +132,27 @@ export default function GrupoPage() {
       navigator.clipboard.writeText(inviteUrl);
       setInviteCopied(true);
       setTimeout(() => setInviteCopied(false), 2000);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!currentGroup) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/groups?groupId=${encodeURIComponent(currentGroup.groupId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        localStorage.removeItem("futbol-current-group-id");
+        await refetchGroups();
+        window.location.href = "/";
+      } else {
+        const data = await res.json();
+        setError(data.error ?? "Error al eliminar el grupo");
+        setDeleteDialogOpen(false);
+      }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -364,7 +388,7 @@ export default function GrupoPage() {
                             sx={{ minWidth: 120 }}
                           >
                             <MenuItem value="admin">Admin</MenuItem>
-                            <MenuItem value="viewer">Visor</MenuItem>
+                            <MenuItem value="viewer">Viewer</MenuItem>
                           </TextField>
                         ) : (
                           <Chip
@@ -413,6 +437,22 @@ export default function GrupoPage() {
             Solo el Owner del grupo puede gestionar miembros y roles.
           </Alert>
         )}
+
+        {isOwner && (
+          <Box sx={{ mt: 6, pt: 3, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <Typography variant="subtitle2" color="error" gutterBottom>
+              Zona peligrosa
+            </Typography>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              Eliminar grupo
+            </Button>
+          </Box>
+        )}
       </Container>
 
       {/* Add member dialog */}
@@ -437,7 +477,7 @@ export default function GrupoPage() {
               sx={{ minWidth: 150 }}
             >
               <MenuItem value="admin">Admin</MenuItem>
-              <MenuItem value="viewer">Visor</MenuItem>
+              <MenuItem value="viewer">Viewer</MenuItem>
             </TextField>
           </Stack>
         </DialogContent>
@@ -484,6 +524,35 @@ export default function GrupoPage() {
           <Button onClick={() => setLinkDialogOpen(false)} color="secondary">Cancelar</Button>
           <Button variant="contained" onClick={handleLinkPlayer}>
             Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete group dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ color: "error.main" }}>Eliminar grupo</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography>
+              ¿Estás seguro de que querés eliminar <strong>{currentGroup?.groupName}</strong>?
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Esta acción es irreversible. Se eliminarán todos los jugadores, partidos,
+              estadísticas y miembros del grupo.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="secondary">
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteGroup}
+            disabled={deleting}
+          >
+            {deleting ? "Eliminando..." : "Eliminar grupo"}
           </Button>
         </DialogActions>
       </Dialog>

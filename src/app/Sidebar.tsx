@@ -17,6 +17,7 @@ import {
   ListItemIcon,
   ListItemText,
   MenuItem,
+  Slider,
   Stack,
   TextField,
   Typography,
@@ -39,6 +40,7 @@ import AddIcon from "@mui/icons-material/Add";
 import { useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useGroup } from "./GroupContext";
+import type { Player, PreferredPosition, Rating } from "@/lib/types";
 
 const DRAWER_WIDTH = 260;
 
@@ -57,24 +59,70 @@ const roleLabels: Record<string, string> = {
   viewer: "Viewer",
 };
 
+const POSITION_OPTIONS: { value: PreferredPosition; label: string }[] = [
+  { value: null, label: "Sin definir" },
+  { value: "goalkeeper", label: "Arquero" },
+  { value: "defense", label: "Defensa" },
+  { value: "midfielder", label: "Mediocampista" },
+  { value: "attacker", label: "Atacante" },
+  { value: "winger", label: "Extremo" },
+];
+
+const SKILL_FIELDS: { key: keyof Player["ratings"]; label: string }[] = [
+  { key: "stamina", label: "Resistencia" },
+  { key: "control", label: "Control" },
+  { key: "shot", label: "Disparo" },
+  { key: "dribble", label: "Regate" },
+  { key: "defense", label: "Defensa" },
+];
+
 function GroupSelector() {
   const { groups, currentGroup, setCurrentGroupId, refetchGroups } = useGroup();
+  const { data: session } = useSession();
   const [showCreate, setShowCreate] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const [playerName, setPlayerName] = useState("");
+  const [playerAge, setPlayerAge] = useState<number | "">("");
+  const [playerPosition, setPlayerPosition] = useState<PreferredPosition>(null);
+  const [ratings, setRatings] = useState<Player["ratings"]>({
+    stamina: 3 as Rating, control: 3 as Rating, shot: 3 as Rating,
+    dribble: 3 as Rating, defense: 3 as Rating,
+  });
+
+  const resetForm = () => {
+    setNewGroupName("");
+    setPlayerName(session?.user?.name ?? "");
+    setPlayerAge("");
+    setPlayerPosition(null);
+    setRatings({ stamina: 3 as Rating, control: 3 as Rating, shot: 3 as Rating, dribble: 3 as Rating, defense: 3 as Rating });
+  };
+
+  const handleOpenCreate = () => {
+    resetForm();
+    setShowCreate(true);
+  };
+
   const handleCreateGroup = async () => {
-    if (!newGroupName.trim()) return;
+    if (!newGroupName.trim() || !playerName.trim()) return;
     setCreating(true);
     try {
+      const player: Player = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: playerName.trim(),
+        age: playerAge || undefined,
+        isGoalie: playerPosition === "goalkeeper",
+        preferredPosition: playerPosition,
+        ratings,
+      };
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newGroupName.trim(), migrateExisting: false }),
+        body: JSON.stringify({ name: newGroupName.trim(), migrateExisting: false, player }),
       });
       if (res.ok) {
         setShowCreate(false);
-        setNewGroupName("");
         await refetchGroups();
         window.location.reload();
       }
@@ -87,19 +135,81 @@ function GroupSelector() {
     <Dialog open={showCreate} onClose={() => setShowCreate(false)} fullWidth maxWidth="sm">
       <DialogTitle>Crear grupo</DialogTitle>
       <DialogContent>
-        <TextField
-          label="Nombre del grupo"
-          placeholder="Ej: Amigos fútbol viernes"
-          value={newGroupName}
-          onChange={(e) => setNewGroupName(e.target.value)}
-          fullWidth
-          autoFocus
-          sx={{ mt: 1 }}
-        />
+        <Stack spacing={3} sx={{ pt: 1 }}>
+          <TextField
+            label="Nombre del grupo"
+            placeholder="Ej: Amigos fútbol viernes"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            fullWidth
+            autoFocus
+          />
+          <Typography variant="subtitle1" fontWeight={600} sx={{ pt: 1 }}>
+            Tu jugador
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: -2 }}>
+            Completá tus datos como jugador del grupo.
+          </Typography>
+          <TextField
+            label="Nombre del jugador"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            fullWidth
+            required
+          />
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Edad"
+              type="number"
+              value={playerAge}
+              onChange={(e) => setPlayerAge(e.target.value ? Number(e.target.value) : "")}
+              sx={{ width: 100 }}
+              slotProps={{ htmlInput: { min: 10, max: 70 } }}
+            />
+            <TextField
+              select
+              label="Posición"
+              value={playerPosition ?? ""}
+              onChange={(e) => setPlayerPosition((e.target.value || null) as PreferredPosition)}
+              fullWidth
+            >
+              {POSITION_OPTIONS.map((opt) => (
+                <MenuItem key={opt.label} value={opt.value ?? ""}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Habilidades (1-5)
+            </Typography>
+            {SKILL_FIELDS.map((field) => (
+              <Stack key={field.key} direction="row" alignItems="center" spacing={2}>
+                <Typography variant="body2" sx={{ width: 90, flexShrink: 0 }}>
+                  {field.label}
+                </Typography>
+                <Slider
+                  value={ratings[field.key]}
+                  onChange={(_, v) => setRatings((prev) => ({ ...prev, [field.key]: v as Rating }))}
+                  min={1} max={5} step={1} marks
+                  valueLabelDisplay="auto" size="small"
+                />
+                <Typography variant="body2" fontWeight={600} sx={{ width: 20, textAlign: "center" }}>
+                  {ratings[field.key]}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={() => setShowCreate(false)} color="secondary">Cancelar</Button>
-        <Button variant="contained" onClick={handleCreateGroup} disabled={!newGroupName.trim() || creating}>
+        <Button
+          variant="contained"
+          onClick={handleCreateGroup}
+          disabled={!newGroupName.trim() || !playerName.trim() || creating}
+        >
           {creating ? "Creando..." : "Crear grupo"}
         </Button>
       </DialogActions>
@@ -124,7 +234,7 @@ function GroupSelector() {
         <Button
           size="small"
           startIcon={<AddIcon />}
-          onClick={() => setShowCreate(true)}
+          onClick={handleOpenCreate}
           sx={{ mt: 0.5, textTransform: "none", fontSize: "0.75rem" }}
         >
           Crear grupo
@@ -166,7 +276,7 @@ function GroupSelector() {
       <Button
         size="small"
         startIcon={<AddIcon />}
-        onClick={() => setShowCreate(true)}
+        onClick={handleOpenCreate}
         sx={{ mt: 0.5, textTransform: "none", fontSize: "0.75rem" }}
       >
         Crear grupo
