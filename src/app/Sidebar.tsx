@@ -7,6 +7,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   List,
   ListItemButton,
@@ -31,29 +35,76 @@ import CloseIcon from "@mui/icons-material/Close";
 import LoginIcon from "@mui/icons-material/Login";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsIcon from "@mui/icons-material/Settings";
+import AddIcon from "@mui/icons-material/Add";
 import { useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useGroup } from "./GroupContext";
 
 const DRAWER_WIDTH = 260;
 
-const navItems = [
+const navItems: { label: string; href: string; icon: React.ReactNode; ownerOnly?: boolean }[] = [
   { label: "Inicio", href: "/", icon: <HomeIcon /> },
   { label: "Jugadores", href: "/jugadores", icon: <PersonIcon /> },
   { label: "Equipos", href: "/equipos", icon: <GroupsIcon /> },
   { label: "Partidos", href: "/partidos", icon: <EmojiEventsIcon /> },
   { label: "Estadísticas", href: "/estadisticas", icon: <BarChartIcon /> },
-  { label: "Grupo", href: "/grupo", icon: <SettingsIcon />, ownerOnly: false },
-] as const;
+  { label: "Grupo", href: "/grupo", icon: <SettingsIcon />, ownerOnly: true },
+];
 
 const roleLabels: Record<string, string> = {
-  owner: "Dueño",
+  owner: "Owner",
   admin: "Admin",
-  viewer: "Visor",
+  viewer: "Viewer",
 };
 
 function GroupSelector() {
-  const { groups, currentGroup, setCurrentGroupId } = useGroup();
+  const { groups, currentGroup, setCurrentGroupId, refetchGroups } = useGroup();
+  const [showCreate, setShowCreate] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newGroupName.trim(), migrateExisting: false }),
+      });
+      if (res.ok) {
+        setShowCreate(false);
+        setNewGroupName("");
+        await refetchGroups();
+        window.location.reload();
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const createDialog = (
+    <Dialog open={showCreate} onClose={() => setShowCreate(false)} fullWidth maxWidth="sm">
+      <DialogTitle>Crear grupo</DialogTitle>
+      <DialogContent>
+        <TextField
+          label="Nombre del grupo"
+          placeholder="Ej: Amigos fútbol viernes"
+          value={newGroupName}
+          onChange={(e) => setNewGroupName(e.target.value)}
+          fullWidth
+          autoFocus
+          sx={{ mt: 1 }}
+        />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={() => setShowCreate(false)} color="secondary">Cancelar</Button>
+        <Button variant="contained" onClick={handleCreateGroup} disabled={!newGroupName.trim() || creating}>
+          {creating ? "Creando..." : "Crear grupo"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 
   if (groups.length <= 1) {
     if (!currentGroup) return null;
@@ -70,6 +121,15 @@ function GroupSelector() {
             color={currentGroup.role === "owner" ? "primary" : currentGroup.role === "admin" ? "secondary" : "default"}
           />
         </Stack>
+        <Button
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={() => setShowCreate(true)}
+          sx={{ mt: 0.5, textTransform: "none", fontSize: "0.75rem" }}
+        >
+          Crear grupo
+        </Button>
+        {createDialog}
       </Box>
     );
   }
@@ -103,6 +163,15 @@ function GroupSelector() {
           </MenuItem>
         ))}
       </TextField>
+      <Button
+        size="small"
+        startIcon={<AddIcon />}
+        onClick={() => setShowCreate(true)}
+        sx={{ mt: 0.5, textTransform: "none", fontSize: "0.75rem" }}
+      >
+        Crear grupo
+      </Button>
+      {createDialog}
     </Box>
   );
 }
@@ -197,7 +266,9 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       <GroupSelector />
 
       <List sx={{ px: 1.5, flex: 1 }} disablePadding>
-        {navItems.map((item) => {
+        {navItems
+          .filter((item) => !item.ownerOnly || currentGroup?.role === "owner")
+          .map((item) => {
           const active = pathname === item.href;
           return (
             <ListItemButton

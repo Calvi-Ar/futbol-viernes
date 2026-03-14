@@ -4,7 +4,10 @@ import {
   getGroupByInviteCode,
   addMemberToGroup,
   getUserRoleInGroup,
+  insertPlayer,
+  linkPlayerToMember,
 } from "@/lib/bigquery";
+import type { Player } from "@/lib/types";
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -17,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   return NextResponse.json({ groupName: group.name });
 }
 
-export async function POST(_req: NextRequest, { params }: Params) {
+export async function POST(req: NextRequest, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,6 +31,11 @@ export async function POST(_req: NextRequest, { params }: Params) {
   if (!group) {
     return NextResponse.json({ error: "Invalid invite code" }, { status: 404 });
   }
+
+  let body: { player?: Player } = {};
+  try {
+    body = await req.json();
+  } catch { /* no body is fine */ }
 
   const existingRole = await getUserRoleInGroup(session.user.id, group.groupId);
   if (existingRole) {
@@ -40,6 +48,14 @@ export async function POST(_req: NextRequest, { params }: Params) {
   }
 
   await addMemberToGroup(group.groupId, session.user.id, "viewer");
+
+  if (body.player?.name) {
+    const player = body.player;
+    player.id = player.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    await insertPlayer(player, group.groupId);
+    await linkPlayerToMember(group.groupId, session.user.id, player.id);
+  }
+
   return NextResponse.json({
     ok: true,
     alreadyMember: false,

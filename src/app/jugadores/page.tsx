@@ -291,26 +291,28 @@ export default function JugadoresPage() {
               )}
             </Stack>
 
-            <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} spacing={2} flexWrap="wrap">
-              <Typography variant="subtitle2" color="text.secondary">
-                Partido:
-              </Typography>
-              <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                {MATCH_SIZES.map((n) => (
-                  <Chip
-                    key={n}
-                    label={`${n} vs ${n}`}
-                    onClick={() => setMatchSize(n)}
-                    color={matchSize === n ? "primary" : "default"}
-                    variant={matchSize === n ? "filled" : "outlined"}
-                    size="small"
-                  />
-                ))}
+            {canEdit && (
+              <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} spacing={2} flexWrap="wrap">
+                <Typography variant="subtitle2" color="text.secondary">
+                  Partido:
+                </Typography>
+                <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                  {MATCH_SIZES.map((n) => (
+                    <Chip
+                      key={n}
+                      label={`${n} vs ${n}`}
+                      onClick={() => setMatchSize(n)}
+                      color={matchSize === n ? "primary" : "default"}
+                      variant={matchSize === n ? "filled" : "outlined"}
+                      size="small"
+                    />
+                  ))}
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  ({selectedForMatch.size} / {requiredCount} jugadores para este partido)
+                </Typography>
               </Stack>
-              <Typography variant="body2" color="text.secondary">
-                ({selectedForMatch.size} / {requiredCount} jugadores para este partido)
-              </Typography>
-            </Stack>
+            )}
 
             {players.length === 0 ? (
               <Alert severity="warning" variant="outlined">
@@ -331,15 +333,17 @@ export default function JugadoresPage() {
                   <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell padding="checkbox" sx={{ bgcolor: "background.paper" }}>
-                          <Checkbox
-                            indeterminate={selectedForMatch.size > 0 && selectedForMatch.size < players.length}
-                            checked={players.length > 0 && selectedForMatch.size === players.length}
-                            onChange={handleSelectAllForMatch}
-                            size="small"
-                            title={selectedForMatch.size === players.length ? "Deseleccionar todos" : "Seleccionar todos"}
-                          />
-                        </TableCell>
+                        {canEdit && (
+                          <TableCell padding="checkbox" sx={{ bgcolor: "background.paper" }}>
+                            <Checkbox
+                              indeterminate={selectedForMatch.size > 0 && selectedForMatch.size < players.length}
+                              checked={players.length > 0 && selectedForMatch.size === players.length}
+                              onChange={handleSelectAllForMatch}
+                              size="small"
+                              title={selectedForMatch.size === players.length ? "Deseleccionar todos" : "Seleccionar todos"}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell sx={{ bgcolor: "background.paper" }}>Nombre</TableCell>
                         <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Edad</TableCell>
                         <TableCell align="center" sx={{ bgcolor: "background.paper" }}>Posición</TableCell>
@@ -357,14 +361,16 @@ export default function JugadoresPage() {
                             ...(selectedForMatch.has(player.id) && { bgcolor: "rgba(76,175,80,0.06)" }),
                           }}
                         >
-                          <TableCell padding="checkbox">
-                            <Checkbox
-                              checked={selectedForMatch.has(player.id)}
-                              onChange={() => handleToggleForMatch(player.id)}
-                              size="small"
-                              title="Juega este partido"
-                            />
-                          </TableCell>
+                          {canEdit && (
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={selectedForMatch.has(player.id)}
+                                onChange={() => handleToggleForMatch(player.id)}
+                                size="small"
+                                title="Juega este partido"
+                              />
+                            </TableCell>
+                          )}
                           <TableCell>
                             <Typography variant="body2" fontWeight={600}>{player.name}</Typography>
                           </TableCell>
@@ -399,15 +405,17 @@ export default function JugadoresPage() {
                   </Table>
                 </Box>
 
-                <Button
-                  variant="contained" size="large"
-                  onClick={handleBuildTeams}
-                  disabled={!canBuildTeams}
-                  startIcon={<BalanceIcon />}
-                  sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
-                >
-                  Armar equipos ({matchSize} vs {matchSize})
-                </Button>
+                {canEdit && (
+                  <Button
+                    variant="contained" size="large"
+                    onClick={handleBuildTeams}
+                    disabled={!canBuildTeams}
+                    startIcon={<BalanceIcon />}
+                    sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+                  >
+                    Armar equipos ({matchSize} vs {matchSize})
+                  </Button>
+                )}
               </>
             )}
           </Stack>

@@ -47,9 +47,9 @@ type Member = {
 };
 
 const roleLabels: Record<GroupRole, string> = {
-  owner: "Dueño",
+  owner: "Owner",
   admin: "Admin",
-  viewer: "Visor",
+  viewer: "Viewer",
 };
 
 const roleColors: Record<GroupRole, "primary" | "secondary" | "default"> = {
@@ -231,6 +231,14 @@ export default function GrupoPage() {
     );
   }
 
+  if (currentGroup.role !== "owner") {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography color="text.secondary">Solo el Owner puede acceder a esta página.</Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ pb: 8 }}>
       <Box sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)", py: 4, px: { xs: 2, sm: 4 } }}>
@@ -280,7 +288,7 @@ export default function GrupoPage() {
                 </Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                Compartí este link para que otros jugadores se unan al grupo como visores.
+                Compartí este link para que otros jugadores se unan al grupo como Viewers.
                 Después podés cambiarles el rol.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
@@ -402,7 +410,7 @@ export default function GrupoPage() {
 
         {!isOwner && (
           <Alert severity="info" sx={{ mt: 2 }}>
-            Solo el dueño del grupo puede gestionar miembros y roles.
+            Solo el Owner del grupo puede gestionar miembros y roles.
           </Alert>
         )}
       </Container>
